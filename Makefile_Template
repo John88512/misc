@@ -1,0 +1,38 @@
+# Advanced Makefile Template for multi-file C projects
+# Automatically finds .c sources in ./src/, builds in ./build/, includes headers
+# Generates dependency files (.d) for incremental rebuilds
+# Usage: make (builds ./build/program), make clean
+
+TARGET_EXEC := program    # Name of the final executable
+BUILD_DIR := ./build      # Directory for objects, deps, and executable
+SRC_DIRS := ./src         # Source directories to scan for .c files
+
+# Find all .c sources recursively
+SRCS := $(shell find $(SRC_DIRS) -name '*.c')
+# Convert sources to object paths in build dir
+OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
+# Dependency files for headers
+DEPS := $(OBJS:.o=.d)
+
+# Find include directories
+INC_DIRS := $(shell find $(SRC_DIRS) -type d)
+INC_FLAGS := $(addprefix -I,$(INC_DIRS))  # -I./src flags
+CPPFLAGS := $(INC_FLAGS) -MMD -MP         # Preprocessor: includes, deps (-MMD: deps, -MP: phony targets)
+
+# Link objects into executable
+$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
+	$(CC) $(OBJS) -o $@
+
+# Rule for compiling .c to .o
+# mkdir -p creates dir if needed; $< = source file
+$(BUILD_DIR)/%.c.o: %.c
+	mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+# Remove build directory and contents
+.PHONY: clean
+clean:
+	rm -r $(BUILD_DIR)
+
+# Include auto-generated dependencies (silent on missing)
+-include $(DEPS)
